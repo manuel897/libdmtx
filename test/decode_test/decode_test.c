@@ -34,7 +34,6 @@
 #define BRIGHT "\x1b[1m"
 
 DmtxMessage *decode(DmtxImage *img, int timeout_ms) {
-    printf("decode()\n");
     DmtxDecode *dec;
     DmtxRegion *reg;
     DmtxMessage *msg;
@@ -45,15 +44,13 @@ DmtxMessage *decode(DmtxImage *img, int timeout_ms) {
     dec = dmtxDecodeCreate(img, 1);
     reg = dmtxRegionFindNext(dec, &timeout); // NULL
     if (reg != NULL) {
-        printf("reg not null\n");
         msg = dmtxDecodeMatrixRegion(dec, reg, DmtxUndefined);
         if (msg != NULL) {
-            printf("msg not null\n");
-            fwrite(msg->output, sizeof(unsigned char), msg->outputIdx, stdout);
+           /* fwrite(msg->output, sizeof(unsigned char), msg->outputIdx, stdout);
 
             fputs("output: \"", stdout);
             fwrite(msg->output, sizeof(unsigned char), msg->outputIdx, stdout);
-            fputs("\"\n", stdout);
+            fputs("\"\n", stdout);*/
             //dmtxMessageDestroy(&msg); 
             // if msg is destroyed, then returned pointer wíll be NULL 
             free(img);
@@ -92,52 +89,60 @@ void decode_images(char *path, int timeout_ms)
             printf("%s%s ", NORMAL_COLOR, reuseable_path);
 
             // reuseable path is full path to image 
-            size_t bytesPerPixel;
-            DmtxImage* img;
-            DmtxDecode* dec;
-            DmtxRegion* reg;
-            DmtxMessage* msg;
+          
             unsigned error;
-            unsigned char* image = 0;
-            unsigned w, h;
             unsigned char* png = 0;
+            unsigned char* img = 0;
+            unsigned width, height;
             size_t pngsize;
-
             error = lodepng_load_file(&png, &pngsize, reuseable_path);
 
-            if (!error) error = lodepng_decode32(&image, &w, &h, png, pngsize);
+            if (!error) error = lodepng_decode32(&img, &width, &height, png, pngsize);
             if (error) printf("error %u: %s\n", error, lodepng_error_text(error));
 
-            assert(image != NULL);
+            assert(img != NULL);
             free(png);
-
+   
+            size_t bytesPerPixel;
+            DmtxImage* dmtxImg;
+            DmtxDecode* dec;
+            DmtxRegion* reg;
             clock_t start, end;
             double cpu_time_used;
-            /*use image here*/
 
             /* start decoding process */
             start = clock();
 
-            img = dmtxImageCreate(image, w, h, 602);
-            assert(img != NULL);
+            dmtxImg = dmtxImageCreate(img, width, height, 602);
+            assert(dmtxImg != NULL);
+            bytesPerPixel = dmtxImageGetProp(dmtxImg, DmtxPropBytesPerPixel);
+            bytesPerPixel = dmtxImageGetProp(dmtxImg, DmtxPropBytesPerPixel);
+            // printf("%s %i %dx%d size %llu bpp %llu ", NORMAL_COLOR, testedCounter, width, height, pngsize, bytesPerPixel);
 
-            bytesPerPixel = dmtxImageGetProp(img, DmtxPropBytesPerPixel);
-            printf("%s %i %dx%d size %llu bpp %llu ", NORMAL_COLOR, testedCounter, w, h, pngsize, bytesPerPixel);
-
-            DmtxMessage *output;
-            output = decode(img, 500);
-            printf("%s%sOUTPUT %u\n", BRIGHT, GREEN, output);
-         
+            DmtxMessage* resultMsg;
+            resultMsg = decode(dmtxImg, 1000);
+            if (resultMsg == NULL)
+            {
+                printf("%s", NORMAL_COLOR);
+                printf("%s NO REGION FOUND", RED);
+                end = clock();
+                cpu_time_used = ((double)(end - start));
+                printf(" %s%s%f ms", BRIGHT, NORMAL_COLOR,          cpu_time_used);
+                printf("%s\n", NORMAL_COLOR);
+            }
+            else {
+                printf("%s", GREEN);
+                printf("%u", resultMsg->output);
+                fwrite(resultMsg->output, sizeof(unsigned char), resultMsg->outputIdx, stdout);
+                // printf("%s%s%u OUTPUT %u\n", BRIGHT, GREEN, resultMsg->output);
+                end = clock();
+                cpu_time_used = ((double)(end - start));
+                printf(" %s%s%f ms", BRIGHT, NORMAL_COLOR, cpu_time_used);
+                printf("%s\n", NORMAL_COLOR);
+                ++successCounter;
+            }
             ++testedCounter;
         }
-        else
-            if (dir->d_type == DT_DIR && strcmp(dir->d_name, ".") != 0 && strcmp(dir->d_name, "..") != 0) // if it is a directory
-            {
-                printf("%s%s\n", GREEN, dir->d_name); // print its name in green
-                char d_path[255]; // here I am using sprintf which is safer than strcat
-                sprintf(d_path, "%s/%s", path, dir->d_name);
-                // show_dir_content(d_path); // recall with the new path
-            }
     }
     printf("\n %s%s%s: %i out of %i", BRIGHT, GREEN, path, successCounter, testedCounter);
     closedir(d); // finally close the directory
@@ -159,12 +164,12 @@ main(int argc, char* argv[])
     char imagePath3[] = "D:/Manuel/SAMPLE_IMAGES/SAMPLE_IMAGES_W_LABELS_1280x720/1623480558__True.png";
 
     
-    /*printf("%s\n", NORMAL_COLOR);
-    int timeout_ms = 1000;
-    decode_images(sampleImagesDir, timeout_ms);
-    printf("%s\n", NORMAL_COLOR);*/
+    printf("%s\n", NORMAL_COLOR);
+    int timeout_ms = 500;
+    decode_images(sampleImagesDir5, timeout_ms);
+    printf("%s\n", NORMAL_COLOR);
  
-    unsigned error;
+   /* unsigned error;
     unsigned char *png = 0;
     unsigned char *img = 0;
     unsigned width, height;
@@ -184,8 +189,8 @@ main(int argc, char* argv[])
 
     dmtxImg = dmtxImageCreate(img, width, height, 602);
     assert(dmtxImg != NULL);
-    bytesPerPixel = dmtxImageGetProp(dmtxImg, DmtxPropBytesPerPixel);
-    DmtxMessage *resultMsg;
+    bytesPerPixel = dmtxImageGetProp(dmtxImg, DmtxPropBytesPerPixel);*/
+  /*  DmtxMessage *resultMsg;
     resultMsg = decode(dmtxImg, 1000);
     if (resultMsg == NULL)
     {
@@ -198,7 +203,6 @@ main(int argc, char* argv[])
         printf("result: %p", resultMsg);
         fwrite(resultMsg->output, sizeof(unsigned char), resultMsg->outputIdx, stdout);
         printf("%s\n", NORMAL_COLOR);
-    }
-   
+    }*/
     exit(0);
 }
