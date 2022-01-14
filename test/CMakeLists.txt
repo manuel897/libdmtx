@@ -11,3 +11,8 @@ add_executable(test_unit
   "unit_test/unit_test.c")
 target_link_libraries(test_unit PRIVATE dmtx)
 add_test(NAME test_unit COMMAND $<TARGET_FILE:test_unit>)
+
+add_executable(test_decode
+  "decode_test/decode_test.c")
+target_link_libraries(test_decode PRIVATE dmtx)
+add_test(NAME test_decode COMMAND $<TARGET_FILE:test_decode>)
