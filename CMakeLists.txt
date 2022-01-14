@@ -5,8 +5,11 @@ project(DMTX VERSION 0.7.5 LANGUAGES C)
 option(DMTX_SHARED "Build DMTX as shared library" ${BUILD_SHARED_LIBS})
 if(DMTX_SHARED)
   add_library(dmtx SHARED "dmtx.c")
+  add_library(lodepng STATIC "lodepng.c")
+
 else()
   add_library(dmtx STATIC "dmtx.c")
+  add_library(lodepng STATIC "lodepng.c")
 endif()
 
 # Compiler specific settings
