@@ -33,53 +33,51 @@
 #define UNDERSCORE "\x1b[4m"
 #define BRIGHT "\x1b[1m"
 
-unsigned char decode(DmtxImage* img, int timeout_ms) {
-    DmtxDecode* dec;
-    DmtxRegion* reg;
-    DmtxMessage* msg;
+DmtxMessage *decode(DmtxImage *img, int timeout_ms) {
+    printf("decode()\n");
+    DmtxDecode *dec;
+    DmtxRegion *reg;
+    DmtxMessage *msg;
     DmtxTime timeout;
-    unsigned char* output;
+    unsigned char output[] = "No codes found";
 
     timeout = dmtxTimeAdd(dmtxTimeNow(), timeout_ms);
-
     dec = dmtxDecodeCreate(img, 1);
-
     reg = dmtxRegionFindNext(dec, &timeout); // NULL
-
     if (reg != NULL) {
-        // msg = dmtxDecodeMatrixRegion(dec, reg, DmtxUndefined);
-        // output = msg->output;
-        // dmtxMessageDestroy(&msg);
-
+        printf("reg not null\n");
         msg = dmtxDecodeMatrixRegion(dec, reg, DmtxUndefined);
         if (msg != NULL) {
-            // fwrite(msg->output, sizeof(unsigned char), msg->outputIdx, stdout);
-            // fputc('\n', stdout);
-            output = msg->output;
+            printf("msg not null\n");
+            fwrite(msg->output, sizeof(unsigned char), msg->outputIdx, stdout);
+
             fputs("output: \"", stdout);
-            fwrite(output, sizeof(unsigned char), msg->outputIdx, stdout);
+            fwrite(msg->output, sizeof(unsigned char), msg->outputIdx, stdout);
             fputs("\"\n", stdout);
-            printf("!!!!#####: %c", &output);
-            dmtxMessageDestroy(&msg);
+            //dmtxMessageDestroy(&msg); 
+            // if msg is destroyed, then returned pointer wíll be NULL 
+            free(img);
+            dmtxRegionDestroy(&reg);
+            dmtxDecodeDestroy(&dec);
+            return msg;
         }
-        dmtxRegionDestroy(&reg);
     }
     else {
-        output = "";
+        free(img);
+        dmtxRegionDestroy(&reg);
+        dmtxDecodeDestroy(&dec); 
+        return NULL; 
     }
-    dmtxRegionDestroy(&reg);
-    dmtxDecodeDestroy(&dec);
-    return output;
 }
 
-void decode_images(char* path, int timeout_ms)
+void decode_images(char *path, int timeout_ms)
 {
     int successCounter = 0;
     int testedCounter = 0;
 
-    DIR* d = opendir(path); // open the path
+    DIR *d = opendir(path); // open the path
     if (d == NULL) return; // if was not able, return
-    struct dirent* dir; // for the directory entries
+    struct dirent *dir; // for the directory entries
     while ((dir = readdir(d)) != NULL) // if we were able to read somehting from the directory
     {
         int len = strlen(dir->d_name);
@@ -126,68 +124,10 @@ void decode_images(char* path, int timeout_ms)
             bytesPerPixel = dmtxImageGetProp(img, DmtxPropBytesPerPixel);
             printf("%s %i %dx%d size %llu bpp %llu ", NORMAL_COLOR, testedCounter, w, h, pngsize, bytesPerPixel);
 
-            unsigned char* output;
+            DmtxMessage *output;
             output = decode(img, 500);
             printf("%s%sOUTPUT %u\n", BRIGHT, GREEN, output);
-            ///** --------
-            //dec = dmtxDecodeCreate(img, 1);
-            //assert(dec != NULL);
-
-            //DmtxTime timeout;
-            //timeout = dmtxTimeAdd(dmtxTimeNow(), timeout_ms);
-            //reg = dmtxRegionFindNext(dec, &timeout); // NULL or &timeout
-            //if (reg != NULL) {
-            //    printf("%s", GREEN);
-
-            //    msg = dmtxDecodeMatrixRegion(dec, reg, DmtxUndefined);
-            //    // printf(msg);
-            //  /*  fprintf(stdout, "msg->arraySize :  \"%zd\"\n", msg->arraySize);
-            //    fprintf(stdout, "msg->codeSize  :  \"%zd\"\n", msg->codeSize);
-            //    fprintf(stdout, "msg->outputSize:  \"%zd\"\n", msg->outputSize);*/
-            //    // int oned = sqrt(msg->arraySize);
-            //  /*  for (int i = 0; i < msg->arraySize; i++) {
-            //        fprintf(stdout, " %c.", msg->array[i]);
-            //        if (i % oned == oned - 1) {
-            //            fprintf(stdout, "\n");
-            //        }
-            //    }*/
-            //    // fprintf(stdout, "\n\n");
-            //   /* for (int j = 0; j < msg->codeSize; j++) {
-            //        fprintf(stdout, " %c.", msg->code[j]);
-            //    }*/
-            //    // fprintf(stdout, "\n\n");
-            //    /*for (int k = 0; k < msg->outputSize; k++) {
-            //        fprintf(stdout, " %c.", msg->output[k]);
-            //    }*/
-            //    // fprintf(stdout, "\n\n");
-
-            //    if (msg != NULL) {
-            //        end = clock();
-            //        cpu_time_used = ((double)(end - start));
-            //        printf("DECODE TIME %s%f ", BRIGHT, cpu_time_used);
-
-            //        fputs("output: \"", stdout);
-            //        fwrite(msg->output, sizeof(unsigned char), msg->outputIdx, stdout);
-            //        fputs("\"\n", stdout);
-            //        dmtxMessageDestroy(&msg);
-            //        ++successCounter;
-            //        // free(msg);
-            //    }
-            //    dmtxRegionDestroy(&reg);
-            //}
-            //else {
-            //    end = clock();
-            //    cpu_time_used = ((double)(end - start));
-            //    printf("DECODE TIME %s%f ", BRIGHT, cpu_time_used);
-            //    char notFoundMsg[20] = "No region found";
-            //    // Escape is : \033
-            //    printf("%s%s\n",RED, notFoundMsg);
-            //}
-            //dmtxDecodeDestroy(&dec);
-            //dmtxImageDestroy(&img);
-            //free(image);
-
-            //------ */
+         
             ++testedCounter;
         }
         else
@@ -208,112 +148,57 @@ main(int argc, char* argv[])
 {
     printf("Decode test \n");
 
-    size_t          width, height, bytesPerPixel;
-    unsigned char   str[] = "30Q324343430794<OQQ";
-    unsigned char* pxl;
-    DmtxEncode* enc;
-    DmtxImage* img;
-    DmtxDecode* dec;
-    DmtxRegion* reg;
-    DmtxMessage* msg;
-
-    fprintf(stdout, "input:  \"%s\"\n", str);
-
-    /* 1) ENCODE a new Data Matrix barcode image (in memory only) */
-
-    enc = dmtxEncodeCreate();
-
-    /*
-     dmtxEncodeSetProp( enc, DmtxPropPixelPacking, DmtxPack16bppRGB );
-     dmtxEncodeSetProp( enc, DmtxPropPixelPacking, DmtxPack32bppRGB );
-     dmtxEncodeSetProp( enc, DmtxPropWidth, 160 );
-     dmtxEncodeSetProp( enc, DmtxPropHeight, 160 );
-    */
-
-    assert(enc != NULL);
-    dmtxEncodeDataMatrix(enc, strlen((const char*)str), str);
-
-    /* 2) COPY the new image data before releasing encoding memory */
-
-    width = dmtxImageGetProp(enc->image, DmtxPropWidth);
-    height = dmtxImageGetProp(enc->image, DmtxPropHeight);
-    bytesPerPixel = dmtxImageGetProp(enc->image, DmtxPropBytesPerPixel);
-
-    pxl = (unsigned char*)malloc(width * height * bytesPerPixel);
-    assert(pxl != NULL);
-    memcpy(pxl, enc->image->pxl, width * height * bytesPerPixel);
-
-    dmtxEncodeDestroy(&enc);
-
-    fprintf(stdout, "width:  \"%zd\"\n", width);
-    fprintf(stdout, "height: \"%zd\"\n", height);
-    fprintf(stdout, "bpp:    \"%zd\"\n", bytesPerPixel);
-
-    for (int i = 0; i < width * height; i++) {
-        fprintf(stdout, "%d", (pxl[i * 3]) == 0);
-        if (i % width == width - 1) {
-            fprintf(stdout, "\n");
-        }
-    }
-
-    /* 3) DECODE the Data Matrix barcode from the copied image */
-
-    img = dmtxImageCreate(pxl, width, height, DmtxPack24bppRGB);
-    assert(img != NULL);
-
-    dec = dmtxDecodeCreate(img, 1);
-    assert(dec != NULL);
-
-    reg = dmtxRegionFindNext(dec, NULL);
-    if (reg != NULL) {
-        msg = dmtxDecodeMatrixRegion(dec, reg, DmtxUndefined);
-
-        fprintf(stdout, "msg->arraySize :  \"%zd\"\n", msg->arraySize);
-        fprintf(stdout, "msg->codeSize  :  \"%zd\"\n", msg->codeSize);
-        fprintf(stdout, "msg->outputSize:  \"%zd\"\n", msg->outputSize);
-        int oned = sqrt(msg->arraySize);
-        for (int i = 0; i < msg->arraySize; i++) {
-            fprintf(stdout, " %c.", msg->array[i]);
-            if (i % oned == oned - 1) {
-                fprintf(stdout, "\n");
-            }
-        }
-        fprintf(stdout, "\n\n");
-        for (int j = 0; j < msg->codeSize; j++) {
-            fprintf(stdout, " %c.", msg->code[j]);
-        }
-        fprintf(stdout, "\n\n");
-        for (int k = 0; k < msg->outputSize; k++) {
-            fprintf(stdout, " %c.", msg->output[k]);
-        }
-        fprintf(stdout, "\n\n");
-
-        if (msg != NULL) {
-            fputs("output: \"", stdout);
-            fwrite(msg->output, sizeof(unsigned char), msg->outputIdx, stdout);
-            fputs("\"\n", stdout);
-            dmtxMessageDestroy(&msg);
-        }
-        dmtxRegionDestroy(&reg);
-    }
-
-    dmtxDecodeDestroy(&dec);
-    dmtxImageDestroy(&img);
-    free(pxl);
-
-    fprintf(stdout, "%d\n", getSizeIdxFromSymbolDimension(12, 12));
-
     char sampleImagesDir[] = "D:/Manuel/SAMPLE_IMAGES/SAMPLE_IMAGES_W_LABELS_1920x1080/";
     char sampleImagesDir2[] = "D:/Manuel/SAMPLE_IMAGES/SAMPLE_IMAGES_W_LABELS_1280x720/";
     char sampleImagesDir3[] = "D:/Manuel/SAMPLE_IMAGES/SAMPLE_IMAGES_3264x2448/";
     char sampleImagesDir4[] = "D:/Manuel/SAMPLE_IMAGES/SAMPLE_IMAGES_1440x1080/";
     char sampleImagesDir5[] = "D:/Manuel/SAMPLE_IMAGES/SAMPLE_IMAGES_960x720/";
+    char imagePath[] = "D:/Manuel/SAMPLE_IMAGES/SAMPLE_IMAGES_960x720/IMG_0187.png";
+    char imagePath2[] = "D:/Manuel/SAMPLE_IMAGES/datamatrix.png";
 
+    char imagePath3[] = "D:/Manuel/SAMPLE_IMAGES/SAMPLE_IMAGES_W_LABELS_1280x720/1623480558__True.png";
 
-    printf("%s\n", NORMAL_COLOR);
+    
+    /*printf("%s\n", NORMAL_COLOR);
     int timeout_ms = 1000;
     decode_images(sampleImagesDir, timeout_ms);
-    printf("%s\n", NORMAL_COLOR);
+    printf("%s\n", NORMAL_COLOR);*/
+ 
+    unsigned error;
+    unsigned char *png = 0;
+    unsigned char *img = 0;
+    unsigned width, height;
+    size_t pngsize;
+    error = lodepng_load_file(&png, &pngsize, imagePath3);
 
+    if (!error) error = lodepng_decode32(&img, &width, &height, png, pngsize);
+    if (error) printf("error %u: %s\n", error, lodepng_error_text(error));
+
+    assert(img != NULL);
+    free(png);
+
+    size_t bytesPerPixel;
+    DmtxImage *dmtxImg;
+    DmtxDecode *dec;
+    DmtxRegion *reg;
+
+    dmtxImg = dmtxImageCreate(img, width, height, 602);
+    assert(dmtxImg != NULL);
+    bytesPerPixel = dmtxImageGetProp(dmtxImg, DmtxPropBytesPerPixel);
+    DmtxMessage *resultMsg;
+    resultMsg = decode(dmtxImg, 1000);
+    if (resultMsg == NULL)
+    {
+        printf("%s\n", NORMAL_COLOR);
+        printf("%s NO REGION FOUND", RED);
+        printf("%s\n", NORMAL_COLOR);
+    }
+    else {
+        printf("%s\n", GREEN);
+        printf("result: %p", resultMsg);
+        fwrite(resultMsg->output, sizeof(unsigned char), resultMsg->outputIdx, stdout);
+        printf("%s\n", NORMAL_COLOR);
+    }
+   
     exit(0);
 }
